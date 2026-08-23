@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML 表格轉換與編輯工具</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2canvas for PNG Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for better visual feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        /* Style for editable cells */
+        [contenteditable="true"]:focus {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -1px;
+            background-color: rgba(59, 130, 246, 0.05) !important;
+        }
+        /* Canvas export wrapper styling */
+        .export-render-container {
+            padding: 24px;
+            background: #ffffff;
+            display: inline-block;
+            min-width: 100%;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col font-sans transition-colors duration-200">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Header Navbar -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-brand-500 text-white rounded-lg shadow-md">
+                    <i class="fa-solid fa-table text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">HTML 表格轉換與編輯器</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">貼上 HTML 轉換為樣式/純淨表格，支援編輯與轉存 Markdown / PNG</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button id="loadSampleBtn" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> 載入範例
+                </button>
+                <button id="clearAllBtn" class="px-3 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-md transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> 清空
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- Code Input Section -->
+        <section class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <label for="htmlInput" class="font-semibold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-code text-brand-500"></i> 輸入 / 貼上 HTML 程式碼
+                </label>
+                <span id="charCount" class="text-xs text-slate-400">0 字元</span>
+            </div>
+            <div class="p-4">
+                <textarea id="htmlInput" rows="5" class="w-full font-mono text-xs sm:text-sm p-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-slate-800 dark:text-slate-200 resize-y" placeholder="請在此貼上 <table>...</table> 程式碼..."></textarea>
+            </div>
+        </section>
+
+        <!-- Table Controls Toolbar -->
+        <section class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center flex-wrap gap-2">
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mr-1">表格編輯：</span>
+                <button id="addRowBtn" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition flex items-center gap-1">
+                    <i class="fa-solid fa-plus text-emerald-500"></i> 新增行 (Row)
+                </button>
+                <button id="addColBtn" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition flex items-center gap-1">
+                    <i class="fa-solid fa-plus text-emerald-500"></i> 新增列 (Col)
+                </button>
+                <button id="removeRowBtn" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                    <i class="fa-solid fa-minus text-rose-500"></i> 刪除最後一行
+                </button>
+                <button id="removeColBtn" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                    <i class="fa-solid fa-minus text-rose-500"></i> 刪除最後一列
+                </button>
+            </div>
+
+            <!-- Display mode tabs -->
+            <div class="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                <button id="tabBoth" class="px-3 py-1 text-xs font-medium rounded-md transition bg-white dark:bg-slate-800 shadow-sm text-brand-600 dark:text-brand-400">雙向並排</button>
+                <button id="tabStyled" class="px-3 py-1 text-xs font-medium rounded-md transition text-slate-600 dark:text-slate-400 hover:text-slate-900">僅顯示原樣式</button>
+                <button id="tabClean" class="px-3 py-1 text-xs font-medium rounded-md transition text-slate-600 dark:text-slate-400 hover:text-slate-900">僅顯示純淨表格</button>
+            </div>
+        </section>
+
+        <!-- Display Tables Grid Container -->
+        <div id="tablesGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Card 1: Original Styled Table -->
+            <section id="styledCard" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden transition-all">
+                <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                        <h2 class="font-semibold text-sm">1. 原樣式表格 (Retained Styles)</h2>
+                    </div>
+                    
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="copyTableMarkdown()" class="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1" title="複製為 Markdown">
+                            <i class="fa-brands fa-markdown text-sky-500"></i> MD
+                        </button>
+                        <button onclick="exportPNG('styledContainer', 'styled_table.png')" class="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1" title="下載 PNG 圖片">
+                            <i class="fa-solid fa-file-image text-emerald-500"></i> PNG
+                        </button>
+                        <button onclick="copyHTML('styled')" class="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1" title="複製 HTML 碼">
+                            <i class="fa-solid fa-code text-purple-500"></i> HTML
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 flex-1 overflow-x-auto min-h-[220px]">
+                    <div id="styledContainer" class="export-render-container rounded border border-slate-100 dark:border-slate-800">
+                        <div class="text-slate-400 text-sm text-center py-12 italic">尚未輸入 HTML 或沒有解析到表格</div>
+                    </div>
+                </div>
+                <div class="px-4 py-2 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/50 text-[11px] text-slate-400">
+                    <i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> 直接點擊儲存格即可進行文字編輯
+                </div>
+            </section>
+
+            <!-- Card 2: Clean Unstyled Table -->
+            <section id="cleanCard" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden transition-all">
+                <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <h2 class="font-semibold text-sm">2. 無樣式純淨表格 (Clean Table)</h2>
+                    </div>
+                    
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="copyTableMarkdown()" class="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1" title="複製為 Markdown">
+                            <i class="fa-brands fa-markdown text-sky-500"></i> MD
+                        </button>
+                        <button onclick="exportPNG('cleanContainer', 'clean_table.png')" class="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1" title="下載 PNG 圖片">
+                            <i class="fa-solid fa-file-image text-emerald-500"></i> PNG
+                        </button>
+                        <button onclick="copyHTML('clean')" class="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1" title="複製 HTML 碼">
+                            <i class="fa-solid fa-code text-purple-500"></i> HTML
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 flex-1 overflow-x-auto min-h-[220px]">
+                    <div id="cleanContainer" class="export-render-container rounded border border-slate-100 dark:border-slate-800">
+                        <div class="text-slate-400 text-sm text-center py-12 italic">尚未輸入 HTML 或沒有解析到表格</div>
+                    </div>
+                </div>
+                <div class="px-4 py-2 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/50 text-[11px] text-slate-400">
+                    <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> 已移除 class, style, width, bgcolor 等所有舊屬性（保留圖片與連結）
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Markdown & Export Output Section -->
+        <section class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-brands fa-markdown text-sky-500 text-base"></i>
+                    <h3 class="font-semibold text-sm">Markdown 格式預覽</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="copyTableMarkdown()" class="px-3 py-1 text-xs font-medium bg-brand-500 hover:bg-brand-600 text-white rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-copy"></i> 複製 Markdown
+                    </button>
+                    <button onclick="downloadMarkdown()" class="px-3 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> 下載 .md 檔
+                    </button>
+                </div>
+            </div>
+            <div class="p-4">
+                <textarea id="markdownOutput" readonly rows="5" class="w-full font-mono text-xs sm:text-sm p-3 bg-slate-900 text-slate-100 rounded-lg outline-none resize-y" placeholder="Markdown 轉換結果將會即時呈現於此..."></textarea>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 text-center text-xs text-slate-400">
+        HTML 表格雙效轉換與導出工具 &copy; 2026 - 點擊儲存格直接編輯，即時轉換 Markdown 與 PNG
+    </footer>
+
+    <script>
+        // DOM Elements
+        const htmlInput = document.getElementById('htmlInput');
+        const styledContainer = document.getElementById('styledContainer');
+        const cleanContainer = document.getElementById('cleanContainer');
+        const markdownOutput = document.getElementById('markdownOutput');
+        const charCount = document.getElementById('charCount');
+
+        // Buttons
+        const loadSampleBtn = document.getElementById('loadSampleBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const addRowBtn = document.getElementById('addRowBtn');
+        const addColBtn = document.getElementById('addColBtn');
+        const removeRowBtn = document.getElementById('removeRowBtn');
+        const removeColBtn = document.getElementById('removeColBtn');
+
+        // View tabs
+        const tabBoth = document.getElementById('tabBoth');
+        const tabStyled = document.getElementById('tabStyled');
+        const tabClean = document.getElementById('tabClean');
+        const tablesGrid = document.getElementById('tablesGrid');
+        const styledCard = document.getElementById('styledCard');
+        const cleanCard = document.getElementById('cleanCard');
+
+        // Sample HTML Preset
+        const SAMPLE_HTML = `<table style="width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #ffffff; border: 2px solid #3b82f6;">
+  <thead>
+    <tr style="background-color: #2563eb; color: #ffffff;">
+      <th style="padding: 12px; border: 1px solid #1d4ed8; text-align: center; width: 60px;">圖示</th>
+      <th style="padding: 12px; border: 1px solid #1d4ed8; text-align: left;">項目名稱</th>
+      <th style="padding: 12px; border: 1px solid #1d4ed8; text-align: center;">數量</th>
+      <th style="padding: 12px; border: 1px solid #1d4ed8; text-align: right;">單價 (TWD)</th>
+      <th style="padding: 12px; border: 1px solid #1d4ed8; text-align: center;">狀態</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">
+        <img src="https://placehold.co/40x40/3b82f6/ffffff?text=FE" alt="前端" style="border-radius: 6px; vertical-align: middle;">
+      </td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">前端工程開發</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">1</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a;">$45,000</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;"><span style="background-color: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 12px; font-size: 12px;">已完成</span></td>
+    </tr>
+    <tr style="background-color: #ffffff;">
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">
+        <img src="https://placehold.co/40x40/f59e0b/ffffff?text=UI" alt="UI" style="border-radius: 6px; vertical-align: middle;">
+      </td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">UI/UX 介面設計</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">1</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a;">$30,000</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;"><span style="background-color: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 12px; font-size: 12px;">進行中</span></td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">
+        <img src="https://placehold.co/40x40/10b981/ffffff?text=API" alt="API" style="border-radius: 6px; vertical-align: middle;">
+      </td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">API 後端整合</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">2</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a;">$20,000</td>
+      <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;"><span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 8px; border-radius: 12px; font-size: 12px;">未開始</span></td>
+    </tr>
+  </tbody>
+</table>`;
+
+        // Flag to prevent recursive editing event loops
+        let isSyncing = false;
+
+        /**
+         * Parses input HTML code and renders both styled and clean tables
+         */
+        function parseAndRender() {
+            const rawHtml = htmlInput.value;
+            charCount.textContent = `${rawHtml.length} 字元`;
+
+            if (!rawHtml.trim()) {
+                styledContainer.innerHTML = '<div class="text-slate-400 text-sm text-center py-12 italic">尚未輸入 HTML 或沒有解析到表格</div>';
+                cleanContainer.innerHTML = '<div class="text-slate-400 text-sm text-center py-12 italic">尚未輸入 HTML 或沒有解析到表格</div>';
+                updateMarkdownOutput();
+                return;
+            }
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(rawHtml, 'text/html');
+            const originalTable = doc.querySelector('table');
+
+            if (!originalTable) {
+                styledContainer.innerHTML = '<div class="text-slate-400 text-sm text-center py-12 italic">未能在輸入中找到 &lt;table&gt; 標籤</div>';
+                cleanContainer.innerHTML = '<div class="text-slate-400 text-sm text-center py-12 italic">未能在輸入中找到 &lt;table&gt; 標籤</div>';
+                updateMarkdownOutput();
+                return;
+            }
+
+            // Render Styled Table
+            styledContainer.innerHTML = '';
+            const styledTable = originalTable.cloneNode(true);
+            styledContainer.appendChild(styledTable);
+            makeEditable(styledTable, 'styled');
+
+            // Render Clean Table
+            cleanContainer.innerHTML = '';
+            const cleanTable = createCleanTable(originalTable);
+            cleanContainer.appendChild(cleanTable);
+            makeEditable(cleanTable, 'clean');
+
+            // Update Markdown Output
+            updateMarkdownOutput();
+        }
+
+        /**
+         * Cleans inline styles, attributes, and classes from table while retaining images and key elements
+         */
+        function createCleanTable(originalTable) {
+            const cleanTable = originalTable.cloneNode(true);
+
+            cleanAttributes(cleanTable);
+            cleanTable.className = "w-full border-collapse border border-slate-300 dark:border-slate-700 text-sm my-1";
+
+            const allElements = cleanTable.querySelectorAll('*');
+            allElements.forEach(el => {
+                const colspan = el.getAttribute('colspan');
+                const rowspan = el.getAttribute('rowspan');
+
+                cleanAttributes(el);
+
+                if (colspan) el.setAttribute('colspan', colspan);
+                if (rowspan) el.setAttribute('rowspan', rowspan);
+
+                const tag = el.tagName.toUpperCase();
+                if (tag === 'TH') {
+                    el.className = "border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-2.5 text-left font-semibold text-slate-800 dark:text-slate-100";
+                } else if (tag === 'TD') {
+                    el.className = "border border-slate-300 dark:border-slate-700 p-2.5 text-slate-700 dark:text-slate-200";
+                } else if (tag === 'TR') {
+                    el.className = "hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
+                } else if (tag === 'IMG') {
+                    el.className = "max-w-full max-h-24 object-contain inline-block my-0.5 rounded";
+                }
+            });
+
+            return cleanTable;
+        }
+
+        /**
+         * Helper to remove unnecessary attributes while preserving image and link sources
+         */
+        function cleanAttributes(el) {
+            const tag = el.tagName.toUpperCase();
+            const attrs = Array.from(el.attributes);
+            
+            const preservedAttrs = ['colspan', 'rowspan'];
+            if (tag === 'IMG') {
+                preservedAttrs.push('src', 'alt', 'title', 'width', 'height');
+            } else if (tag === 'A') {
+                preservedAttrs.push('href', 'target', 'title');
+            }
+
+            for (let attr of attrs) {
+                if (!preservedAttrs.includes(attr.name.toLowerCase())) {
+                    el.removeAttribute(attr.name);
+                }
+            }
+        }
+
+        /**
+         * Add contenteditable="true" to cells and bind sync events
+         */
+        function makeEditable(tableElement, source) {
+            const cells = tableElement.querySelectorAll('th, td');
+            cells.forEach((cell) => {
+                cell.setAttribute('contenteditable', 'true');
+                cell.setAttribute('spellcheck', 'false');
+
+                cell.addEventListener('input', () => {
+                    if (isSyncing) return;
+                    isSyncing = true;
+
+                    const row = cell.closest('tr');
+                    const rowIndex = Array.from(row.parentNode.children).indexOf(row);
+                    const cellIndex = Array.from(row.children).indexOf(cell);
+
+                    const targetContainer = source === 'styled' ? cleanContainer : styledContainer;
+                    const targetTable = targetContainer.querySelector('table');
+
+                    if (targetTable) {
+                        const targetRows = targetTable.querySelectorAll('tr');
+                        if (targetRows[rowIndex] && targetRows[rowIndex].children[cellIndex]) {
+                            targetRows[rowIndex].children[cellIndex].innerHTML = cell.innerHTML;
+                        }
+                    }
+
+                    updateMarkdownOutput();
+                    isSyncing = false;
+                });
+            });
+        }
+
+        /**
+         * Structure Operations: Add Row
+         */
+        function addRow() {
+            const styledTable = styledContainer.querySelector('table');
+            const cleanTable = cleanContainer.querySelector('table');
+
+            if (!styledTable || !cleanTable) {
+                showToast("請先輸入有效的 HTML 表格！", "warning");
+                return;
+            }
+
+            const firstRow = styledTable.querySelector('tr');
+            const colCount = firstRow ? firstRow.children.length : 1;
+
+            const createRow = (isClean = false) => {
+                const tr = document.createElement('tr');
+                if (isClean) {
+                    tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
+                }
+                for (let i = 0; i < colCount; i++) {
+                    const td = document.createElement('td');
+                    td.innerHTML = '新資料';
+                    if (isClean) {
+                        td.className = "border border-slate-300 dark:border-slate-700 p-2.5 text-slate-700 dark:text-slate-200";
+                    } else {
+                        td.setAttribute('style', 'padding: 10px; border: 1px solid #cbd5e1;');
+                    }
+                    tr.appendChild(td);
+                }
+                return tr;
+            };
+
+            const styledTarget = styledTable.querySelector('tbody') || styledTable;
+            styledTarget.appendChild(createRow(false));
+
+            const cleanTarget = cleanTable.querySelector('tbody') || cleanTable;
+            cleanTarget.appendChild(createRow(true));
+
+            makeEditable(styledTable, 'styled');
+            makeEditable(cleanTable, 'clean');
+            updateMarkdownOutput();
+            showToast("已新增一行", "success");
+        }
+
+        /**
+         * Structure Operations: Add Column
+         */
+        function addColumn() {
+            const styledTable = styledContainer.querySelector('table');
+            const cleanTable = cleanContainer.querySelector('table');
+
+            if (!styledTable || !cleanTable) {
+                showToast("請先輸入有效的 HTML 表格！", "warning");
+                return;
+            }
+
+            const styledRows = styledTable.querySelectorAll('tr');
+            const cleanRows = cleanTable.querySelectorAll('tr');
+
+            styledRows.forEach((row, idx) => {
+                const isHeader = row.parentNode.tagName === 'THEAD' || idx === 0;
+                const cellTag = isHeader ? 'th' : 'td';
+                const cell = document.createElement(cellTag);
+                cell.innerHTML = isHeader ? '新標題' : '新資料';
+                cell.setAttribute('style', 'padding: 10px; border: 1px solid #cbd5e1;');
+                row.appendChild(cell);
+            });
+
+            cleanRows.forEach((row, idx) => {
+                const isHeader = row.parentNode.tagName === 'THEAD' || idx === 0;
+                const cellTag = isHeader ? 'th' : 'td';
+                const cell = document.createElement(cellTag);
+                cell.innerHTML = isHeader ? '新標題' : '新資料';
+                cell.className = isHeader
+                    ? "border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-2.5 text-left font-semibold text-slate-800 dark:text-slate-100"
+                    : "border border-slate-300 dark:border-slate-700 p-2.5 text-slate-700 dark:text-slate-200";
+                row.appendChild(cell);
+            });
+
+            makeEditable(styledTable, 'styled');
+            makeEditable(cleanTable, 'clean');
+            updateMarkdownOutput();
+            showToast("已新增一列", "success");
+        }
+
+        /**
+         * Structure Operations: Remove Last Row
+         */
+        function removeRow() {
+            const styledTable = styledContainer.querySelector('table');
+            const cleanTable = cleanContainer.querySelector('table');
+
+            if (!styledTable || !cleanTable) return;
+
+            const styledRows = styledTable.querySelectorAll('tr');
+            const cleanRows = cleanTable.querySelectorAll('tr');
+
+            if (styledRows.length <= 1) {
+                showToast("至少需保留一行！", "warning");
+                return;
+            }
+
+            styledRows[styledRows.length - 1].remove();
+            cleanRows[cleanRows.length - 1].remove();
+
+            updateMarkdownOutput();
+            showToast("已刪除最後一行", "info");
+        }
+
+        /**
+         * Structure Operations: Remove Last Column
+         */
+        function removeColumn() {
+            const styledTable = styledContainer.querySelector('table');
+            const cleanTable = cleanContainer.querySelector('table');
+
+            if (!styledTable || !cleanTable) return;
+
+            const styledRows = styledTable.querySelectorAll('tr');
+            const cleanRows = cleanTable.querySelectorAll('tr');
+
+            if (styledRows.length === 0) return;
+            if (styledRows[0].children.length <= 1) {
+                showToast("至少需保留一列！", "warning");
+                return;
+            }
+
+            styledRows.forEach(row => {
+                if (row.lastElementChild) row.lastElementChild.remove();
+            });
+
+            cleanRows.forEach(row => {
+                if (row.lastElementChild) row.lastElementChild.remove();
+            });
+
+            updateMarkdownOutput();
+            showToast("已刪除最後一列", "info");
+        }
+
+        /**
+         * Convert DOM table to Markdown syntax (handles text and images)
+         */
+        function generateMarkdown(tableEl) {
+            if (!tableEl) return '';
+
+            const rows = Array.from(tableEl.querySelectorAll('tr'));
+            if (rows.length === 0) return '';
+
+            let md = '';
+            
+            rows.forEach((row, rowIndex) => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                if (cells.length === 0) return;
+
+                const cellTexts = cells.map(cell => {
+                    const clone = cell.cloneNode(true);
+                    
+                    const imgs = clone.querySelectorAll('img');
+                    imgs.forEach(img => {
+                        const src = img.getAttribute('src') || '';
+                        const alt = img.getAttribute('alt') || 'image';
+                        const mdImg = `![${alt}](${src})`;
+                        img.replaceWith(document.createTextNode(` ${mdImg} `));
+                    });
+
+                    let text = clone.innerText.trim();
+                    text = text.replace(/\n+/g, '<br>').replace(/\|/g, '\\|');
+                    return text || ' ';
+                });
+
+                md += '| ' + cellTexts.join(' | ') + ' |\n';
+
+                if (rowIndex === 0) {
+                    const separators = cells.map(() => '---');
+                    md += '| ' + separators.join(' | ') + ' |\n';
+                }
+            });
+
+            return md;
+        }
+
+        function updateMarkdownOutput() {
+            const table = cleanContainer.querySelector('table') || styledContainer.querySelector('table');
+            if (!table) {
+                markdownOutput.value = '';
+                return;
+            }
+            markdownOutput.value = generateMarkdown(table);
+        }
+
+        /**
+         * Export specified table to PNG image using html2canvas
+         */
+        async function exportPNG(containerId, filename) {
+            const container = document.getElementById(containerId);
+            const table = container.querySelector('table');
+
+            if (!table) {
+                showToast("沒有找到可導出的表格！", "warning");
+                return;
+            }
+
+            showToast("正在生成 PNG 圖片中...", "info");
+
+            try {
+                const editableCells = container.querySelectorAll('[contenteditable]');
+                editableCells.forEach(c => c.removeAttribute('contenteditable'));
+
+                const canvas = await html2canvas(container, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true
+                });
+
+                editableCells.forEach(c => c.setAttribute('contenteditable', 'true'));
+
+                const imageURI = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = imageURI;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast("PNG 圖片已成功下載！", "success");
+            } catch (err) {
+                console.error('PNG Export failed:', err);
+                showToast("圖片生成失敗，請稍後重試", "danger");
+            }
+        }
+
+        function copyTableMarkdown() {
+            const text = markdownOutput.value;
+            if (!text) {
+                showToast("無內容可複製！", "warning");
+                return;
+            }
+            copyToClipboard(text);
+            showToast("Markdown 格式已複製到剪貼簿！", "success");
+        }
+
+        function downloadMarkdown() {
+            const text = markdownOutput.value;
+            if (!text) {
+                showToast("無內容可下載！", "warning");
+                return;
+            }
+            const blob = new Blob([text], { type: 'text/markdown;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'table_export.md';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Markdown 檔案已下載！", "success");
+        }
+
+        function copyHTML(type) {
+            const container = type === 'styled' ? styledContainer : cleanContainer;
+            const table = container.querySelector('table');
+
+            if (!table) {
+                showToast("沒有可複製的 HTML 表格！", "warning");
+                return;
+            }
+
+            const clone = table.cloneNode(true);
+            clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+
+            copyToClipboard(clone.outerHTML);
+            showToast(`${type === 'styled' ? '原樣式' : '純淨版'} HTML 已複製！`, "success");
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                } catch (err) {
+                    console.error('Fallback copy failed', err);
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const bgColors = {
+                success: 'bg-emerald-600 text-white',
+                info: 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900',
+                warning: 'bg-amber-500 text-white',
+                danger: 'bg-rose-600 text-white'
+            };
+
+            const icons = {
+                success: 'fa-circle-check',
+                info: 'fa-circle-info',
+                warning: 'fa-triangle-exclamation',
+                danger: 'fa-circle-xmark'
+            };
+
+            toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-lg shadow-lg text-xs font-medium transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto ${bgColors[type] || bgColors.info}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Event Listeners
+        htmlInput.addEventListener('input', parseAndRender);
+
+        loadSampleBtn.addEventListener('click', () => {
+            htmlInput.value = SAMPLE_HTML;
+            parseAndRender();
+            showToast("已載入範例表格 HTML！", "success");
+        });
+
+        clearAllBtn.addEventListener('click', () => {
+            htmlInput.value = '';
+            parseAndRender();
+            showToast("已清空所有內容", "info");
+        });
+
+        addRowBtn.addEventListener('click', addRow);
+        addColBtn.addEventListener('click', addColumn);
+        removeRowBtn.addEventListener('click', removeRow);
+        removeColBtn.addEventListener('click', removeColumn);
+
+        // View switches
+        tabBoth.addEventListener('click', () => {
+            tablesGrid.className = "grid grid-cols-1 lg:grid-cols-2 gap-6";
+            styledCard.classList.remove('hidden');
+            cleanCard.classList.remove('hidden');
+            setActiveTab(tabBoth);
+        });
+
+        tabStyled.addEventListener('click', () => {
+            tablesGrid.className = "grid grid-cols-1 gap-6";
+            styledCard.classList.remove('hidden');
+            cleanCard.classList.add('hidden');
+            setActiveTab(tabStyled);
+        });
+
+        tabClean.addEventListener('click', () => {
+            tablesGrid.className = "grid grid-cols-1 gap-6";
+            styledCard.classList.add('hidden');
+            cleanCard.classList.remove('hidden');
+            setActiveTab(tabClean);
+        });
+
+        function setActiveTab(activeBtn) {
+            [tabBoth, tabStyled, tabClean].forEach(btn => {
+                btn.className = "px-3 py-1 text-xs font-medium rounded-md transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100";
+            });
+            activeBtn.className = "px-3 py-1 text-xs font-medium rounded-md transition bg-white dark:bg-slate-800 shadow-sm text-brand-600 dark:text-brand-400 font-semibold";
+        }
+
+        // Initial launch
+        window.addEventListener('DOMContentLoaded', () => {
+            htmlInput.value = SAMPLE_HTML;
+            parseAndRender();
+        });
+    </script>
+</body>
+</html>
