@@ -29,7 +29,6 @@
         }
     </script>
     <style>
-        /* Custom scrollbar for better visual feel */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -41,13 +40,11 @@
             background: rgba(0, 0, 0, 0.2);
             border-radius: 4px;
         }
-        /* Style for editable cells */
         [contenteditable="true"]:focus {
             outline: 2px solid #3b82f6 !important;
             outline-offset: -1px;
             background-color: rgba(59, 130, 246, 0.05) !important;
         }
-        /* Canvas export wrapper styling */
         .export-render-container {
             padding: 24px;
             background: #ffffff;
@@ -58,7 +55,6 @@
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col font-sans transition-colors duration-200">
 
-    <!-- Toast Notification Container -->
     <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Header Navbar -->
@@ -70,13 +66,16 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight">HTML 表格轉換與編輯器</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">貼上 HTML 轉換為樣式/純淨表格，支援編輯與轉存 Markdown / PNG</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">貼上 HTML 轉換為樣式/純淨表格，防盜連圖片修復與轉存 Markdown/PNG</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-2">
                 <button id="loadSampleBtn" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition flex items-center gap-1.5">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> 載入範例
+                </button>
+                <button id="loadWikiaSampleBtn" class="px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-800/50 rounded-md transition flex items-center gap-1.5" title="載入包含 Wikia / Fandom 特殊格式的表格">
+                    <i class="fa-solid fa-book-bookmark"></i> Wikia 範例
                 </button>
                 <button id="clearAllBtn" class="px-3 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-md transition flex items-center gap-1.5">
                     <i class="fa-solid fa-trash-can"></i> 清空
@@ -85,7 +84,6 @@
         </div>
     </header>
 
-    <!-- Main Content Area -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
 
         <!-- Code Input Section -->
@@ -94,19 +92,32 @@
                 <label for="htmlInput" class="font-semibold text-sm flex items-center gap-2">
                     <i class="fa-solid fa-code text-brand-500"></i> 輸入 / 貼上 HTML 程式碼
                 </label>
-                <span id="charCount" class="text-xs text-slate-400">0 字元</span>
-            </div>
-            <div class="p-4">
-                <textarea id="htmlInput" rows="5" class="w-full font-mono text-xs sm:text-sm p-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-slate-800 dark:text-slate-200 resize-y" placeholder="請在此貼上 <table>...</table> 程式碼..."></textarea>
-            </div>
-            <div class="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-900/50 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                <i class="fa-solid fa-circle-info text-amber-500 mt-0.5 flex-shrink-0"></i>
-                <div class="leading-relaxed">
-                    <span class="font-semibold">GitHub Pages 圖片無法顯示排查小幫手：</span><br>
-                    1. <b>路徑問題</b>：請使用 <code>./images/pic.png</code>，切勿用斜線開頭的 <code>/images/pic.png</code>。<br>
-                    2. <b>GitHub Blob 網址</b>：工具已為您自動將 <code>github.com/.../blob/</code> 轉為 Raw 圖片網址。<br>
-                    3. <b>大小寫不符</b>：Linux 區分大小寫（例如 <code>.JPG</code> 與 <code>.jpg</code> 不一樣）。
+                <div class="flex items-center gap-2">
+                    <span id="charCount" class="text-xs text-slate-400 mr-1">0 字元</span>
+                    <button id="simplifyImgUrlsBtn" class="px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded transition flex items-center gap-1" title="去除圖片網址副檔名後方的額外參數">
+                        <i class="fa-solid fa-scissors"></i> 圖片連結簡化
+                    </button>
+                    <button id="pasteInputBtn" class="px-2.5 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/40 hover:bg-brand-100 dark:hover:bg-brand-900/50 rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-paste"></i> 貼上
+                    </button>
+                    <button id="clearInputBtn" class="px-2.5 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can"></i> 清空
+                    </button>
                 </div>
+            </div>
+            
+            <div class="p-4 flex flex-col gap-3">
+                <!-- Base URL Input for resolving relative image paths -->
+                <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/80 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+                    <i class="fa-solid fa-link text-brand-500 ml-1"></i>
+                    <label for="baseUrlInput" class="font-medium whitespace-nowrap text-slate-600 dark:text-slate-300">原網站網址 (Base URL):</label>
+                    <input type="url" id="baseUrlInput" class="flex-1 bg-white dark:bg-slate-800 px-2.5 py-1 rounded border border-slate-300 dark:border-slate-600 outline-none text-slate-800 dark:text-slate-200 focus:border-brand-500" placeholder="https://example.com （用於補全相對路徑如 /img/a.png）">
+                    <button id="toggleProxyBtn" class="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white font-medium rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-shield-halved"></i> 跨域代理: <span id="proxyStatusText">啟用</span>
+                    </button>
+                </div>
+
+                <textarea id="htmlInput" rows="5" class="w-full font-mono text-xs sm:text-sm p-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-slate-800 dark:text-slate-200 resize-y" placeholder="請在此貼上 <table>...</table> 程式碼..."></textarea>
             </div>
         </section>
 
@@ -228,20 +239,27 @@
 
     <!-- Footer -->
     <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 text-center text-xs text-slate-400">
-        HTML 表格雙效轉換與導出工具 &copy; 2026 - 點擊儲存格直接編輯，即時轉換 Markdown 與 PNG
+        HTML 表格雙效轉換與導出工具 &copy; 2026 - 支援防盜連圖片修復、儲存格直接編輯、即時轉換 Markdown 與 PNG
     </footer>
 
     <script>
         // DOM Elements
         const htmlInput = document.getElementById('htmlInput');
+        const baseUrlInput = document.getElementById('baseUrlInput');
         const styledContainer = document.getElementById('styledContainer');
         const cleanContainer = document.getElementById('cleanContainer');
         const markdownOutput = document.getElementById('markdownOutput');
         const charCount = document.getElementById('charCount');
+        const toggleProxyBtn = document.getElementById('toggleProxyBtn');
+        const proxyStatusText = document.getElementById('proxyStatusText');
 
         // Buttons
         const loadSampleBtn = document.getElementById('loadSampleBtn');
+        const loadWikiaSampleBtn = document.getElementById('loadWikiaSampleBtn');
         const clearAllBtn = document.getElementById('clearAllBtn');
+        const simplifyImgUrlsBtn = document.getElementById('simplifyImgUrlsBtn');
+        const pasteInputBtn = document.getElementById('pasteInputBtn');
+        const clearInputBtn = document.getElementById('clearInputBtn');
         const addRowBtn = document.getElementById('addRowBtn');
         const addColBtn = document.getElementById('addColBtn');
         const removeRowBtn = document.getElementById('removeRowBtn');
@@ -254,6 +272,10 @@
         const tablesGrid = document.getElementById('tablesGrid');
         const styledCard = document.getElementById('styledCard');
         const cleanCard = document.getElementById('cleanCard');
+
+        // Global Settings
+        let enableProxyFallback = true;
+        let isSyncing = false;
 
         // Sample HTML Preset
         const SAMPLE_HTML = `<table style="width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #ffffff; border: 2px solid #3b82f6;">
@@ -278,7 +300,7 @@
     </tr>
     <tr style="background-color: #ffffff;">
       <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">
-        <img src="https://placehold.co/40x40/f59e0b/ffffff?text=UI" alt="UI" style="border-radius: 6px; vertical-align: middle;">
+        <img data-src="https://placehold.co/40x40/f59e0b/ffffff?text=UI" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="UI" style="border-radius: 6px; vertical-align: middle;">
       </td>
       <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">UI/UX 介面設計</td>
       <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">1</td>
@@ -297,8 +319,169 @@
   </tbody>
 </table>`;
 
-        // Flag to prevent recursive editing event loops
-        let isSyncing = false;
+        const WIKIA_SAMPLE_HTML = `<table border="1" cellpadding="1" cellspacing="1" class="wikitable">
+<tbody>
+<tr>
+  <th style="background-color: rgb(145, 145, 145);" width="15%"><b>Item</b></th>
+  <th style="background-color: rgb(145, 145, 145);"><b>Description</b></th>
+  <th style="background-color: rgb(145, 145, 145);"><b>Sources</b></th>
+</tr>
+<tr>
+  <th style="background-color: rgb(135, 165, 214);">
+    <span class="mw-default-size" typeof="mw:File">
+      <a href="https://static.wikia.nocookie.net/patapon/images/1/15/Cafeteria_Meat.PNG/revision/latest?cb=20200708012149" class="mw-file-description image">
+        <img alt="Cafeteria Meat" src="https://static.wikia.nocookie.net/patapon/images/1/15/Cafeteria_Meat.PNG/revision/latest?cb=20200708012149" decoding="async" loading="lazy" width="48" height="48" class="mw-file-element">
+      </a>
+    </span><br>Cafeteria Meat
+  </th>
+  <td><i>A piece of high-grade meat served in the cafeteria. Very nutritious!</i><br><u>Level: <b>Rare</b></u></td>
+  <td>Dropped by <sub>Boss A</sub> or bought at <sup>Store B</sup> <mark>Discount</mark></td>
+</tr>
+</tbody>
+</table>`;
+
+        /**
+         * Resolves image source from multiple possible attributes (data-src, srcset, etc.)
+         * and fixes relative URLs using Base URL if provided.
+         */
+        function extractBestImageSrc(imgEl) {
+            const attributes = Array.from(imgEl.attributes);
+            let candidateSrc = '';
+
+            // Priority 1: Check known lazy-loading or custom image attributes
+            const priorityAttrs = [
+                'data-src', 'data-original', 'data-lazy-src', 'data-actualsrc', 
+                'data-url', 'data-orig-file', 'data-hi-res-src', 'data-original-src',
+                'data-srcset', 'srcset'
+            ];
+
+            for (const name of priorityAttrs) {
+                const val = imgEl.getAttribute(name);
+                if (val && val.trim() !== '' && !isDummyPlaceholder(val)) {
+                    candidateSrc = val.trim();
+                    break;
+                }
+            }
+
+            // Priority 2: Iterate over all attributes if no match found yet
+            if (!candidateSrc) {
+                for (const attr of attributes) {
+                    const name = attr.name.toLowerCase();
+                    if ((name.includes('src') || name.includes('url') || name.includes('path') || name.includes('original')) && name !== 'src') {
+                        const val = attr.value;
+                        if (val && val.trim() !== '' && !isDummyPlaceholder(val)) {
+                            candidateSrc = val.trim();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Priority 3: Fallback to standard src
+            if (!candidateSrc) {
+                candidateSrc = imgEl.getAttribute('src') || '';
+            }
+
+            // Handle srcset formats (e.g. "image-1x.jpg 1x, image-2x.jpg 2x")
+            if (candidateSrc.includes(' ') && (candidateSrc.includes('.jpg') || candidateSrc.includes('.png') || candidateSrc.includes('.webp') || candidateSrc.includes('http'))) {
+                const parts = candidateSrc.split(',');
+                if (parts.length > 0) {
+                    candidateSrc = parts[0].trim().split(' ')[0];
+                }
+            }
+
+            // Clean html entities (e.g. &amp; -> &)
+            candidateSrc = candidateSrc.replace(/&amp;/g, '&');
+
+            // Handle relative protocol URLs (//cdn.example.com/a.jpg -> https://cdn.example.com/a.jpg)
+            if (candidateSrc.startsWith('//')) {
+                candidateSrc = 'https:' + candidateSrc;
+            }
+
+            // Resolve relative path using user specified Base URL or window origin
+            const baseUrl = baseUrlInput.value.trim();
+            if (baseUrl && !candidateSrc.startsWith('http://') && !candidateSrc.startsWith('https://') && !candidateSrc.startsWith('data:')) {
+                try {
+                    const resolved = new URL(candidateSrc, baseUrl.endsWith('/') ? baseUrl : baseUrl + '/');
+                    candidateSrc = resolved.href;
+                } catch (e) {
+                    console.warn('Failed to resolve relative image path:', candidateSrc);
+                }
+            }
+
+            // GitHub blob URL conversion (github.com/.../blob/... -> raw.githubusercontent.com/...)
+            if (candidateSrc.includes('github.com/') && candidateSrc.includes('/blob/')) {
+                candidateSrc = candidateSrc.replace('github.com/', 'raw.githubusercontent.com/').replace('/blob/', '/');
+            }
+
+            return candidateSrc;
+        }
+
+        /**
+         * Checks if URL is a transparent spacer or placeholder image
+         */
+        function isDummyPlaceholder(url) {
+            if (!url) return true;
+            const u = url.toLowerCase();
+            return u.startsWith('data:image/gif') || 
+                   u.startsWith('data:image/svg+xml') ||
+                   u.includes('blank.gif') || 
+                   u.includes('spacer.gif') || 
+                   u.includes('transparent.png') ||
+                   u.includes('pixel.gif');
+        }
+
+        /**
+         * Enhanced Image Fixer: Sets properties, handles fallback proxying on error
+         */
+        function fixImageElement(imgEl) {
+            const originalRawSrc = extractBestImageSrc(imgEl);
+
+            if (!originalRawSrc || isDummyPlaceholder(originalRawSrc)) {
+                imgEl.src = 'https://placehold.co/80x80/e2e8f0/475569?text=無圖片網址';
+                return;
+            }
+
+            // Store original source in dataset for retry logic
+            imgEl.dataset.originalSource = originalRawSrc;
+            imgEl.src = originalRawSrc;
+
+            // Set anti-hotlink & CORS attributes
+            imgEl.setAttribute('loading', 'eager');
+            imgEl.setAttribute('referrerpolicy', 'no-referrer');
+            
+            // Attach error handler for proxy fallback
+            attachImageErrorHandler(imgEl);
+        }
+
+        /**
+         * Smart Image Error Handler:
+         * Tier 1: Try direct URL with referrerpolicy="no-referrer"
+         * Tier 2: Try CORS Image Proxy (images.weserv.nl) to bypass hotlink & CORS restrictions
+         * Tier 3: Show fallback placeholder
+         */
+        function attachImageErrorHandler(imgEl) {
+            imgEl.onerror = function() {
+                const origSrc = this.dataset.originalSource || this.src;
+
+                // Step 2: If proxy is enabled and hasn't been tried yet for this image
+                if (enableProxyFallback && !this.dataset.triedProxy && origSrc && origSrc.startsWith('http')) {
+                    this.dataset.triedProxy = "true";
+                    
+                    // Encode URL for weserv.nl proxy
+                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(origSrc)}&n=-1`;
+                    console.log('Hotlink/CORS error detected. Retrying via proxy:', proxiedUrl);
+                    
+                    this.src = proxiedUrl;
+                    return;
+                }
+
+                // Step 3: Final fallback placeholder
+                this.onerror = null; // Prevent infinite loops
+                this.src = 'https://placehold.co/80x80/fee2e2/dc2626?text=圖片無法載入';
+                this.title = `圖片無法載入 (${origSrc})`;
+            };
+        }
 
         /**
          * Parses input HTML code and renders both styled and clean tables
@@ -325,10 +508,13 @@
                 return;
             }
 
+            // Fix image sources across all images in original parsed table
+            originalTable.querySelectorAll('img').forEach(fixImageElement);
+
             // Render Styled Table
             styledContainer.innerHTML = '';
             const styledTable = originalTable.cloneNode(true);
-            styledTable.querySelectorAll('img').forEach(fixImageSrc);
+            styledTable.querySelectorAll('img').forEach(attachImageErrorHandler);
             styledContainer.appendChild(styledTable);
             makeEditable(styledTable, 'styled');
 
@@ -348,6 +534,9 @@
         function createCleanTable(originalTable) {
             const cleanTable = originalTable.cloneNode(true);
 
+            // Re-attach image fallbacks after cloning
+            cleanTable.querySelectorAll('img').forEach(attachImageErrorHandler);
+
             cleanAttributes(cleanTable);
             cleanTable.className = "w-full border-collapse border border-slate-300 dark:border-slate-700 text-sm my-1";
 
@@ -356,21 +545,27 @@
                 const colspan = el.getAttribute('colspan');
                 const rowspan = el.getAttribute('rowspan');
 
+                // Get cell alignment before cleaning attributes
+                const align = getCellAlignment(el);
+
                 cleanAttributes(el);
 
                 if (colspan) el.setAttribute('colspan', colspan);
                 if (rowspan) el.setAttribute('rowspan', rowspan);
 
                 const tag = el.tagName.toUpperCase();
+                let alignClass = 'text-left';
+                if (align === 'center') alignClass = 'text-center';
+                else if (align === 'right') alignClass = 'text-right';
+
                 if (tag === 'TH') {
-                    el.className = "border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-2.5 text-left font-semibold text-slate-800 dark:text-slate-100";
+                    el.className = `border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-2.5 ${alignClass} font-semibold text-slate-800 dark:text-slate-100`;
                 } else if (tag === 'TD') {
-                    el.className = "border border-slate-300 dark:border-slate-700 p-2.5 text-slate-700 dark:text-slate-200";
+                    el.className = `border border-slate-300 dark:border-slate-700 p-2.5 ${alignClass} text-slate-700 dark:text-slate-200`;
                 } else if (tag === 'TR') {
                     el.className = "hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
                 } else if (tag === 'IMG') {
                     el.className = "max-w-full max-h-24 object-contain inline-block my-0.5 rounded";
-                    fixImageSrc(el);
                 }
             });
 
@@ -378,24 +573,24 @@
         }
 
         /**
-         * Automatically converts GitHub Blob URLs to Raw URLs & adds broken image fallbacks
+         * Detect cell alignment (left, center, right)
          */
-        function fixImageSrc(imgEl) {
-            let src = imgEl.getAttribute('src');
-            if (!src) return;
+        function getCellAlignment(cell) {
+            if (!cell) return 'left';
+            const style = cell.getAttribute('style') || '';
+            const alignAttr = cell.getAttribute('align') || cell.parentNode?.getAttribute('align') || '';
+            const className = cell.className || '';
 
-            // Auto-convert github.com/.../blob/... to raw.githubusercontent.com/...
-            if (src.includes('github.com/') && src.includes('/blob/')) {
-                const fixedSrc = src.replace('github.com/', 'raw.githubusercontent.com/').replace('/blob/', '/');
-                imgEl.setAttribute('src', fixedSrc);
+            if (/text-align\s*:\s*center/i.test(style) || alignAttr.toLowerCase() === 'center' || /\btext-center\b/.test(className)) {
+                return 'center';
             }
-
-            // Add graceful fallback image if image fails to load
-            imgEl.onerror = function() {
-                this.onerror = null;
-                this.src = 'https://placehold.co/80x80/e2e8f0/475569?text=圖片載入失敗';
-                this.title = '圖片無法載入，請確認相對路徑、大小寫或 GitHub Pages 發布設定';
-            };
+            if (/text-align\s*:\s*right/i.test(style) || alignAttr.toLowerCase() === 'right' || /\btext-right\b/.test(className)) {
+                return 'right';
+            }
+            if (/text-align\s*:\s*left/i.test(style) || alignAttr.toLowerCase() === 'left' || /\btext-left\b/.test(className)) {
+                return 'left';
+            }
+            return 'left';
         }
 
         /**
@@ -407,7 +602,7 @@
             
             const preservedAttrs = ['colspan', 'rowspan'];
             if (tag === 'IMG') {
-                preservedAttrs.push('src', 'alt', 'title', 'width', 'height');
+                preservedAttrs.push('src', 'alt', 'title', 'width', 'height', 'referrerpolicy', 'loading', 'data-original-source', 'data-tried-proxy');
             } else if (tag === 'A') {
                 preservedAttrs.push('href', 'target', 'title');
             }
@@ -452,9 +647,6 @@
             });
         }
 
-        /**
-         * Structure Operations: Add Row
-         */
         function addRow() {
             const styledTable = styledContainer.querySelector('table');
             const cleanTable = cleanContainer.querySelector('table');
@@ -497,9 +689,6 @@
             showToast("已新增一行", "success");
         }
 
-        /**
-         * Structure Operations: Add Column
-         */
         function addColumn() {
             const styledTable = styledContainer.querySelector('table');
             const cleanTable = cleanContainer.querySelector('table');
@@ -538,9 +727,6 @@
             showToast("已新增一列", "success");
         }
 
-        /**
-         * Structure Operations: Remove Last Row
-         */
         function removeRow() {
             const styledTable = styledContainer.querySelector('table');
             const cleanTable = cleanContainer.querySelector('table');
@@ -562,9 +748,6 @@
             showToast("已刪除最後一行", "info");
         }
 
-        /**
-         * Structure Operations: Remove Last Column
-         */
         function removeColumn() {
             const styledTable = styledContainer.querySelector('table');
             const cleanTable = cleanContainer.querySelector('table');
@@ -593,7 +776,123 @@
         }
 
         /**
-         * Convert DOM table to Markdown syntax (handles text and images)
+         * Convert DOM element content inside cell to Markdown (supporting bold, italic, strikethrough, code, links, lists, images, etc.)
+         */
+        function cellToMarkdown(cell) {
+            function parseNode(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return node.textContent;
+                }
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return '';
+                }
+
+                const tag = node.tagName.toUpperCase();
+                let childrenText = Array.from(node.childNodes).map(parseNode).join('');
+
+                // Check inline style for formatting if element is span or font wrapper
+                const style = node.getAttribute('style') || '';
+                const isBoldStyle = /font-weight\s*:\s*(bold|[6-9]00)/i.test(style);
+                const isItalicStyle = /font-style\s*:\s*italic/i.test(style);
+                const isUnderlineStyle = /text-decoration\s*:\s*[^;]*underline/i.test(style);
+                const isStrikeStyle = /text-decoration\s*:\s*[^;]*line-through/i.test(style);
+
+                let formatted = childrenText;
+
+                switch (tag) {
+                    case 'B':
+                    case 'STRONG':
+                        formatted = childrenText.trim() ? `**${childrenText.trim()}**` : '';
+                        break;
+                    case 'I':
+                    case 'EM':
+                    case 'CITE':
+                    case 'VAR':
+                        formatted = childrenText.trim() ? `*${childrenText.trim()}*` : '';
+                        break;
+                    case 'S':
+                    case 'DEL':
+                    case 'STRIKE':
+                        formatted = childrenText.trim() ? `~~${childrenText.trim()}~~` : '';
+                        break;
+                    case 'U':
+                    case 'INS':
+                        formatted = childrenText.trim() ? `<u>${childrenText.trim()}</u>` : '';
+                        break;
+                    case 'SUB':
+                        formatted = childrenText.trim() ? `<sub>${childrenText.trim()}</sub>` : '';
+                        break;
+                    case 'SUP':
+                        formatted = childrenText.trim() ? `<sup>${childrenText.trim()}</sup>` : '';
+                        break;
+                    case 'MARK':
+                        formatted = childrenText.trim() ? `<mark>${childrenText.trim()}</mark>` : '';
+                        break;
+                    case 'CODE':
+                    case 'KBD':
+                    case 'SAMP':
+                        formatted = childrenText.trim() ? `\`${childrenText.trim()}\`` : '';
+                        break;
+                    case 'A':
+                        const href = node.getAttribute('href') || '';
+                        const trimmedContent = childrenText.trim();
+                        if (href && trimmedContent) {
+                            // Handles linked images [![alt](src)](href) or regular links [text](href)
+                            formatted = `[${trimmedContent}](${href})`;
+                        } else {
+                            formatted = trimmedContent;
+                        }
+                        break;
+                    case 'IMG':
+                        const src = node.dataset.originalSource || node.getAttribute('src') || '';
+                        const alt = node.getAttribute('alt') || 'image';
+                        formatted = src ? `![${alt}](${src})` : '';
+                        break;
+                    case 'BR':
+                    case 'HR':
+                        return '<br>';
+                    case 'P':
+                    case 'DIV':
+                    case 'CENTER':
+                    case 'H1':
+                    case 'H2':
+                    case 'H3':
+                    case 'H4':
+                    case 'H5':
+                    case 'H6':
+                        return childrenText.trim() ? childrenText.trim() + '<br>' : '';
+                    case 'LI':
+                        return '• ' + childrenText.trim() + '<br>';
+                    case 'UL':
+                    case 'OL':
+                    case 'SPAN':
+                    default:
+                        formatted = childrenText;
+                        break;
+                }
+
+                // Apply inline styles if present
+                if (isBoldStyle && !formatted.startsWith('**')) formatted = `**${formatted}**`;
+                if (isItalicStyle && !formatted.startsWith('*')) formatted = `*${formatted}*`;
+                if (isUnderlineStyle && !formatted.includes('<u>')) formatted = `<u>${formatted}</u>`;
+                if (isStrikeStyle && !formatted.startsWith('~~')) formatted = `~~${formatted}~~`;
+
+                return formatted;
+            }
+
+            let md = parseNode(cell);
+            
+            // Clean up multiline breaks inside cell to ensure Markdown table format doesn't break
+            md = md.replace(/\r?\n+/g, ' ');
+            md = md.replace(/(<br>\s*)+$/gi, '');
+            md = md.replace(/^(<br>\s*)+/gi, '');
+            md = md.replace(/\|/g, '\\|'); // Escape table column separator
+            
+            return md.trim() || ' ';
+        }
+
+        /**
+         * Convert DOM table to Markdown syntax preserving column alignment and formatting
          */
         function generateMarkdown(tableEl) {
             if (!tableEl) return '';
@@ -601,33 +900,43 @@
             const rows = Array.from(tableEl.querySelectorAll('tr'));
             if (rows.length === 0) return '';
 
-            let md = '';
+            // Calculate column alignments from first row
+            const colAlignments = [];
+            const firstRowCells = rows[0] ? Array.from(rows[0].querySelectorAll('th, td')) : [];
             
-            rows.forEach((row, rowIndex) => {
+            firstRowCells.forEach((cell, colIdx) => {
+                let align = getCellAlignment(cell);
+                if (align === 'left' && rows.length > 1) {
+                    const cellInNextRow = rows[1].children[colIdx];
+                    if (cellInNextRow) {
+                        const nextAlign = getCellAlignment(cellInNextRow);
+                        if (nextAlign !== 'left') align = nextAlign;
+                    }
+                }
+                colAlignments.push(align);
+            });
+
+            let md = '';
+            let headerProcessed = false;
+            
+            rows.forEach((row) => {
                 const cells = Array.from(row.querySelectorAll('th, td'));
                 if (cells.length === 0) return;
 
-                const cellTexts = cells.map(cell => {
-                    const clone = cell.cloneNode(true);
-                    
-                    const imgs = clone.querySelectorAll('img');
-                    imgs.forEach(img => {
-                        const src = img.getAttribute('src') || '';
-                        const alt = img.getAttribute('alt') || 'image';
-                        const mdImg = `![${alt}](${src})`;
-                        img.replaceWith(document.createTextNode(` ${mdImg} `));
-                    });
-
-                    let text = clone.innerText.trim();
-                    text = text.replace(/\n+/g, '<br>').replace(/\|/g, '\\|');
-                    return text || ' ';
-                });
+                const cellTexts = cells.map(cell => cellToMarkdown(cell));
 
                 md += '| ' + cellTexts.join(' | ') + ' |\n';
 
-                if (rowIndex === 0) {
-                    const separators = cells.map(() => '---');
+                // Add header separator after the first row
+                if (!headerProcessed) {
+                    const separators = cells.map((_, colIdx) => {
+                        const align = colAlignments[colIdx] || 'left';
+                        if (align === 'center') return ':---:';
+                        if (align === 'right') return '---:';
+                        return ':---';
+                    });
                     md += '| ' + separators.join(' | ') + ' |\n';
+                    headerProcessed = true;
                 }
             });
 
@@ -644,105 +953,32 @@
         }
 
         /**
-         * Export specified table to PNG image using html2canvas
+         * 簡化輸入的 HTML 中所有圖片網址，去除副檔名後方的多餘參數或 Wikia revision 路徑
          */
-        async function exportPNG(containerId, filename) {
-            const container = document.getElementById(containerId);
-            const table = container.querySelector('table');
-
-            if (!table) {
-                showToast("沒有找到可導出的表格！", "warning");
+        function simplifyImgUrls() {
+            const raw = htmlInput.value;
+            if (!raw.trim()) {
+                showToast("無內容可簡化！", "warning");
                 return;
             }
 
-            showToast("正在生成 PNG 圖片中...", "info");
+            // 匹配格式如：
+            // 1. http(s)://.../image.PNG/revision/latest?cb=... -> http(s)://.../image.PNG
+            // 2. http(s)://.../image.PNG?width=300&height=300 -> http(s)://.../image.PNG
+            const regex = /((?:https?:)?\/\/[^\s"'<>]+?\.(?:png|jpg|jpeg|gif|webp|svg|bmp|tiff|ico|avif))(\/(?:revision\/[^\s"'<>]*)|(?:\?[^\s"'<>]*))/gi;
 
-            try {
-                const editableCells = container.querySelectorAll('[contenteditable]');
-                editableCells.forEach(c => c.removeAttribute('contenteditable'));
+            let matchCount = 0;
+            const simplified = raw.replace(regex, (match, p1) => {
+                matchCount++;
+                return p1;
+            });
 
-                const canvas = await html2canvas(container, {
-                    scale: 2,
-                    backgroundColor: '#ffffff',
-                    logging: false,
-                    useCORS: true
-                });
-
-                editableCells.forEach(c => c.setAttribute('contenteditable', 'true'));
-
-                const imageURI = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = filename;
-                link.href = imageURI;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                showToast("PNG 圖片已成功下載！", "success");
-            } catch (err) {
-                console.error('PNG Export failed:', err);
-                showToast("圖片生成失敗，請稍後重試", "danger");
-            }
-        }
-
-        function copyTableMarkdown() {
-            const text = markdownOutput.value;
-            if (!text) {
-                showToast("無內容可複製！", "warning");
-                return;
-            }
-            copyToClipboard(text);
-            showToast("Markdown 格式已複製到剪貼簿！", "success");
-        }
-
-        function downloadMarkdown() {
-            const text = markdownOutput.value;
-            if (!text) {
-                showToast("無內容可下載！", "warning");
-                return;
-            }
-            const blob = new Blob([text], { type: 'text/markdown;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'table_export.md';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showToast("Markdown 檔案已下載！", "success");
-        }
-
-        function copyHTML(type) {
-            const container = type === 'styled' ? styledContainer : cleanContainer;
-            const table = container.querySelector('table');
-
-            if (!table) {
-                showToast("沒有可複製的 HTML 表格！", "warning");
-                return;
-            }
-
-            const clone = table.cloneNode(true);
-            clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-
-            copyToClipboard(clone.outerHTML);
-            showToast(`${type === 'styled' ? '原樣式' : '純淨版'} HTML 已複製！`, "success");
-        }
-
-        function copyToClipboard(text) {
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text);
+            if (matchCount > 0) {
+                htmlInput.value = simplified;
+                parseAndRender();
+                showToast(`已成功簡化 ${matchCount} 個圖片與版本連結！`, "success");
             } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                try {
-                    document.execCommand('copy');
-                } catch (err) {
-                    console.error('Fallback copy failed', err);
-                }
-                document.body.removeChild(textarea);
+                showToast("未找到需要簡化的圖片連結", "info");
             }
         }
 
@@ -781,15 +1017,61 @@
 
         // Event Listeners
         htmlInput.addEventListener('input', parseAndRender);
+        baseUrlInput.addEventListener('input', parseAndRender);
+        simplifyImgUrlsBtn.addEventListener('click', simplifyImgUrls);
+
+        toggleProxyBtn.addEventListener('click', () => {
+            enableProxyFallback = !enableProxyFallback;
+            proxyStatusText.textContent = enableProxyFallback ? '啟用' : '停用';
+            toggleProxyBtn.className = enableProxyFallback 
+                ? "px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white font-medium rounded transition flex items-center gap-1"
+                : "px-2.5 py-1 bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded transition flex items-center gap-1";
+            parseAndRender();
+            showToast(enableProxyFallback ? "已開啟跨域圖片代理" : "已關閉跨域圖片代理", "info");
+        });
+
+        pasteInputBtn.addEventListener('click', async () => {
+            try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                        htmlInput.value = text;
+                        parseAndRender();
+                        showToast("已成功貼上剪貼簿內容！", "success");
+                    } else {
+                        showToast("剪貼簿無文字內容", "warning");
+                    }
+                } else {
+                    showToast("瀏覽器不支援讀取剪貼簿，請手動 Ctrl+V 貼上", "warning");
+                }
+            } catch (err) {
+                showToast("無法讀取剪貼簿，請手動使用 Ctrl+V 貼上", "warning");
+            }
+        });
+
+        clearInputBtn.addEventListener('click', () => {
+            htmlInput.value = '';
+            parseAndRender();
+            showToast("已清空輸入框內容", "info");
+        });
 
         loadSampleBtn.addEventListener('click', () => {
             htmlInput.value = SAMPLE_HTML;
+            baseUrlInput.value = '';
             parseAndRender();
-            showToast("已載入範例表格 HTML！", "success");
+            showToast("已載入預設範例表格！", "success");
+        });
+
+        loadWikiaSampleBtn.addEventListener('click', () => {
+            htmlInput.value = WIKIA_SAMPLE_HTML;
+            baseUrlInput.value = '';
+            parseAndRender();
+            showToast("已載入 Wikia / Fandom 範例表格！", "success");
         });
 
         clearAllBtn.addEventListener('click', () => {
             htmlInput.value = '';
+            baseUrlInput.value = '';
             parseAndRender();
             showToast("已清空所有內容", "info");
         });
